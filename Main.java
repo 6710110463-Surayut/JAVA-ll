@@ -1,0 +1,74 @@
+import java.util.*;
+
+public class Main {
+    static int sumDigits(String studentId) {
+        int sum = 0;
+        for (char c : studentId.toCharArray()) if (Character.isDigit(c)) sum += c - '0';
+        return sum;
+    }
+
+    static String makeSignatureV2(String studentId, int score, int completed) {
+        int checksum = 7;
+        for (char c : studentId.toCharArray()) checksum = (checksum * 37 + c) % 100000;
+        checksum = (checksum + score * 89 + completed * 101) % 100000;
+        return "SIG2-" + String.format("%05d", checksum);
+    }
+
+    static int askInt(Scanner sc, String prompt, int min, int max) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                int v = Integer.parseInt(sc.nextLine().trim());
+                if (v >= min && v <= max) return v;
+            } catch (Exception e) {}
+            System.out.println("กรุณากรอกเลข " + min + "-" + max);
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("กรอกรหัสนักศึกษา: ");
+        String studentId = sc.nextLine().trim();
+        
+        int key = sumDigits(studentId) % 97;
+        int energy = (key * 7 + 13) % 100;
+        int logic = (key * 11 + 5) % 100;
+        int luck = (key * 17 + 19) % 100;
+
+        QuestService qs = new QuestService();
+        qs.seedQuests(key);
+        int totalScore = 0;
+
+        while (true) {
+            System.out.println("\n[1] List [2] Do Quest [3] Stats [4] Exit");
+            int m = askInt(sc, "เลือกเมนู: ", 1, 4);
+
+            if (m == 1) qs.listQuests();
+            else if (m == 2) {
+                System.out.print("ระบุ Quest ID: ");
+                String id = sc.nextLine().trim();
+                try {
+                    Quest q = qs.findById(id); // จะ throw exception ถ้าไม่เจอ
+                    if (q.canComplete(energy, logic, luck)) {
+                        int r = q.rewardPoints(key);
+                        totalScore += r;
+                        qs.stats.put("completed", qs.stats.get("completed") + 1);
+                        System.out.println("สำเร็จ! ได้รับ " + r + " แต้ม");
+                    } else {
+                        qs.stats.put("failed", qs.stats.get("failed") + 1);
+                        System.out.println("เงื่อนไขไม่ผ่าน!");
+                    }
+                } catch (QuestException e) {
+                    System.out.println("ข้อผิดพลาด: " + e.getMessage());
+                }
+            } else if (m == 3) {
+                System.out.println("Completed: " + qs.stats.get("completed") + ", Failed: " + qs.stats.get("failed"));
+                System.out.println("Score: " + totalScore);
+            } else break;
+        }
+
+        System.out.println("\n--- Final ---");
+        System.out.println("Signature: " + makeSignatureV2(studentId, totalScore, qs.stats.get("completed")));
+        sc.close();
+    }
+}
